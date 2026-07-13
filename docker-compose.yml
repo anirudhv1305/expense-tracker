@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: expense-tracker-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-expense_tracker}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD before starting Postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - expense_tracker_data:/var/lib/postgresql/data
+
+volumes:
+  expense_tracker_data:

@@ -1,0 +1,2 @@
+-- Optional test data: run manually after setup if you want a populated demo month.
+-- The application intentionally keeps first-time setup under user control.
