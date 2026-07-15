@@ -18,16 +18,15 @@ export default function DashboardPage() {
   const navigate = useNavigate();
 
   async function load() {
-    const status = await client.setupStatus();
-    if (!status.setupComplete) {
-      navigate('/setup');
-      return;
-    }
-    const [dash, months] = await Promise.all([client.dashboard(), client.history()]);
-    setDashboard(dash);
-    setHistory(months);
-    if (monthDetails && dash.month.id === monthDetails.month.id) {
-      setMonthDetails(await client.month(dash.month.id));
+    try {
+      const [dash, months] = await Promise.all([client.dashboard(), client.history()]);
+      setDashboard(dash);
+      setHistory(months);
+      if (monthDetails && dash.month.id === monthDetails.month.id) {
+        setMonthDetails(await client.month(dash.month.id));
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err);
     }
   }
 

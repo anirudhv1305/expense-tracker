@@ -24,7 +24,7 @@ export const client = {
   },
   login: (payload) => api.post('/auth/login', payload).then((r) => r.data),
   register: (payload) => api.post('/auth/register', payload).then((r) => r.data),
-  setupStatus: () => api.get('/settings/status').then((r) => r.data),
+  setupStatus: () => api.get(`/settings/status?_t=${Date.now()}`).then((r) => r.data),
   setup: (initialBalance) => api.post('/settings/setup', { initialBalance }).then((r) => r.data),
   dashboard: () => api.get('/dashboard').then((r) => r.data),
   history: () => api.get('/dashboard/history').then((r) => r.data),

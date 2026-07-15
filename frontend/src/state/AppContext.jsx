@@ -8,6 +8,8 @@ export function AppProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('expense_tracker_token'));
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('expense_tracker_user') || 'null'));
   const [lookups, setLookups] = useState({ categories: [], creditSources: [] });
+  const [setupComplete, setSetupComplete] = useState(null);
+  const [checkingSetup, setCheckingSetup] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
@@ -19,6 +21,7 @@ export function AppProvider({ children }) {
     localStorage.removeItem('expense_tracker_user');
     setToken(null);
     setUser(null);
+    setSetupComplete(null);
     setLookups({ categories: [], creditSources: [] });
   }
 
@@ -48,15 +51,43 @@ export function AppProvider({ children }) {
       logout();
       return;
     }
-    Promise.all([client.categories(), client.creditSources()])
-      .then(([categories, creditSources]) => setLookups({ categories, creditSources }))
-      .catch(() => setLookups({ categories: [], creditSources: [] }));
+    setCheckingSetup(true);
+    Promise.all([
+      client.setupStatus(),
+      client.categories(),
+      client.creditSources()
+    ])
+      .then(([status, categories, creditSources]) => {
+        setSetupComplete(status.setupComplete);
+        setLookups({ categories, creditSources });
+      })
+      .catch((err) => {
+        console.error('Failed to initialize app state:', err);
+        setSetupComplete(false);
+      })
+      .finally(() => {
+        setCheckingSetup(false);
+      });
   }, [token]);
 
-  const value = useMemo(() => ({ dark, setDark, lookups, token, user, applyAuth, logout, isAuthenticated: Boolean(token && !isTokenExpired(token)) }), [dark, lookups, token, user]);
+  const value = useMemo(() => ({
+    dark,
+    setDark,
+    lookups,
+    token,
+    user,
+    setupComplete,
+    setSetupComplete,
+    checkingSetup,
+    applyAuth,
+    logout,
+    isAuthenticated: Boolean(token && !isTokenExpired(token))
+  }), [dark, lookups, token, user, setupComplete, checkingSetup]);
+
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
 export function useApp() {
   return useContext(AppContext);
 }
+

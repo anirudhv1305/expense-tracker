@@ -3,17 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { Wallet } from 'lucide-react';
 import { client } from '../services/api';
 import { Button } from '../components/ui/Button';
+import { useApp } from '../state/AppContext';
 
 export default function SetupPage() {
   const [balance, setBalance] = useState('');
   const [saving, setSaving] = useState(false);
+  const { setSetupComplete } = useApp();
   const navigate = useNavigate();
 
   async function submit(event) {
     event.preventDefault();
     setSaving(true);
-    await client.setup(Number(balance));
-    navigate('/');
+    try {
+      await client.setup(Number(balance));
+      setSetupComplete(true);
+      navigate('/');
+    } catch (err) {
+      console.error('Setup failed:', err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
