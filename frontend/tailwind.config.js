@@ -13,7 +13,9 @@ export default {
         card: 'hsl(var(--card))',
         muted: 'hsl(var(--muted))',
         primary: 'hsl(var(--primary))',
+        'primary-foreground': 'hsl(var(--primary-foreground))',
         destructive: 'hsl(var(--destructive))',
+        'destructive-foreground': 'hsl(var(--destructive-foreground))',
         success: 'hsl(var(--success))',
         analytics: 'hsl(var(--analytics))'
       },

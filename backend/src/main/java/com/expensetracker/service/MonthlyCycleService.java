@@ -7,6 +7,8 @@ import com.expensetracker.security.CurrentUserService;
 import com.expensetracker.settings.Settings;
 import com.expensetracker.settings.SettingsRepository;
 import com.expensetracker.user.AppUser;
+import com.expensetracker.transaction.TransactionRepository;
+import com.expensetracker.transaction.TransactionType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,6 +25,7 @@ public class MonthlyCycleService {
     private final SettingsRepository settingsRepository;
     private final MonthlyRecordRepository monthlyRecordRepository;
     private final CurrentUserService currentUserService;
+    private final TransactionRepository transactionRepository;
 
     @Transactional
     public Settings settings() {
@@ -51,6 +54,25 @@ public class MonthlyCycleService {
         settings.setCurrentMonth(month);
         settingsRepository.save(settings);
         return month;
+    }
+
+    @Transactional
+    public MonthlyRecord updateOpeningBalance(BigDecimal openingBalance) {
+        var user = currentUserService.currentUser();
+        var month = ensureCurrentMonth(user);
+        month.setOpeningBalance(openingBalance);
+        var running = openingBalance;
+        var credits = BigDecimal.ZERO;
+        var debits = BigDecimal.ZERO;
+        var txs = transactionRepository.findByMonthlyRecordOrderByOccurredAtAscCreatedAtAsc(month);
+        for (var tx : txs) {
+            if (tx.getType() == TransactionType.CREDIT) { running = running.add(tx.getAmount()); credits = credits.add(tx.getAmount()); }
+            else { running = running.subtract(tx.getAmount()); debits = debits.add(tx.getAmount()); }
+            tx.setBalanceAfterTransaction(running);
+        }
+        month.setTotalCredits(credits); month.setTotalDebits(debits); month.setClosingBalance(running); month.setTransactionCount(txs.size());
+        settings(user).setInitialBalance(openingBalance);
+        return monthlyRecordRepository.save(month);
     }
 
     @Transactional

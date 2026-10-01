@@ -14,7 +14,7 @@ public final class Mapper {
                 tx.getId(),
                 tx.getType(),
                 tx.getCategory() == null ? null : tx.getCategory().getName(),
-                tx.getSubCategory(),
+                tx.getSubCategoryRef() == null ? tx.getSubCategory() : tx.getSubCategoryRef().getName(),
                 tx.getCreditSource() == null ? null : tx.getCreditSource().getName(),
                 tx.getAmount(),
                 tx.getOccurredAt(),

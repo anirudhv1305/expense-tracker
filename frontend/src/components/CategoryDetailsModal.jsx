@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X } from 'lucide-react';
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
-import { currency, monthLabel } from '../lib/utils';
+import { currency, monthLabel, transactionDate } from '../lib/utils';
 import { Button } from './ui/Button';
 
-const colors = ['#2563eb', '#16a34a', '#dc2626', '#0891b2', '#7c3aed', '#ea580c', '#475569', '#db2777'];
+const colors = Array.from({ length: 8 }, (_, index) => `hsl(var(--chart-${index + 1}))`);
 
 export default function CategoryDetailsModal({ category, month, transactions = [], onClose }) {
   const [query, setQuery] = useState('');
@@ -34,25 +35,25 @@ export default function CategoryDetailsModal({ category, month, transactions = [
   if (!category) return null;
 
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/45 p-4 animate-in fade-in duration-150">
-      <section className="glass flex max-h-[88vh] w-full max-w-[900px] flex-col rounded-lg border shadow-glass animate-in zoom-in-95 duration-150">
-        <header className="flex items-start justify-between gap-4 border-b p-5">
-          <div>
-            <h2 className="text-2xl font-semibold">{category.name}</h2>
+    createPortal(<div className="fixed inset-0 z-[100] flex min-h-0 min-w-0 items-center justify-center overflow-hidden bg-black/50 p-2 pb-[calc(4.75rem+env(safe-area-inset-bottom))] sm:p-4 animate-in fade-in duration-150">
+      <section role="dialog" aria-modal="true" aria-labelledby="category-details-title" className="glass flex h-full max-h-full min-h-0 w-full min-w-0 max-w-[900px] flex-col overflow-hidden rounded-[1.7rem] border shadow-2xl animate-in zoom-in-95 duration-150 sm:h-auto sm:max-h-[calc(100dvh-2rem)]">
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b p-4 sm:gap-4 sm:p-5">
+          <div className="min-w-0">
+            <h2 id="category-details-title" className="break-words text-2xl font-semibold">{category.name}</h2>
             <p className="text-sm text-foreground/60">{month ? monthLabel(month.month, month.year) : 'Selected Month'}: {month?.startDate} to {month?.endDate}</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close category details"><X size={18} /></Button>
         </header>
 
-        <div className="overflow-y-auto p-5">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5">
           <div className="grid gap-3 sm:grid-cols-3">
             <Summary label="Total spent" value={currency(total)} />
             <Summary label="Transactions" value={categoryTransactions.length} />
             <Summary label="Monthly expenses" value={`${category?.percentage || 0}%`} />
           </div>
 
-          <section className="mt-5 grid gap-5 lg:grid-cols-[360px_1fr]">
-            <div className="rounded-lg border p-4">
+          <section className="mt-5 grid min-w-0 gap-5 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+            <div className="min-w-0 rounded-lg border p-4">
               <h3 className="mb-3 text-sm font-semibold text-foreground/70">Subcategory Pie Chart</h3>
               {pieData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={260}>
@@ -68,7 +69,7 @@ export default function CategoryDetailsModal({ category, month, transactions = [
                 <div className="grid h-[260px] place-items-center text-sm text-foreground/50">No subcategories available.</div>
               )}
             </div>
-            <div className="rounded-lg border p-4">
+            <div className="min-w-0 rounded-lg border p-4">
               <h3 className="mb-3 text-sm font-semibold text-foreground/70">Subcategory Breakdown</h3>
               {subcategoryRows.length > 0 ? (
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -119,7 +120,7 @@ export default function CategoryDetailsModal({ category, month, transactions = [
                 <tbody className="divide-y">
                   {filteredTransactions.map((tx) => (
                     <tr key={tx.id}>
-                      <td className="py-3">{new Date(tx.occurredAt).toLocaleDateString('en-IN')}</td>
+                      <td className="py-3">{transactionDate(tx.occurredAt)}</td>
                       <td>{tx.subCategory || '-'}</td>
                       <td>{tx.description}</td>
                       <td className="text-right font-medium">{currency(tx.amount)}</td>
@@ -132,7 +133,7 @@ export default function CategoryDetailsModal({ category, month, transactions = [
           </section>
         </div>
       </section>
-    </div>
+    </div>, document.body)
   );
 }
 

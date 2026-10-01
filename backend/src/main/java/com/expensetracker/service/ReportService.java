@@ -39,7 +39,7 @@ public class ReportService {
                         tx.getOccurredAt().toLocalDate().toString(),
                         tx.getAmount().toPlainString(),
                         tx.getCategory() == null ? tx.getCreditSource().getName() : tx.getCategory().getName(),
-                        tx.getSubCategory() == null ? "" : tx.getSubCategory(),
+                        subCategoryName(tx),
                         tx.getDescription(),
                         tx.getBalanceAfterTransaction().toPlainString()
                 });
@@ -69,7 +69,7 @@ public class ReportService {
                 row.createCell(1).setCellValue(tx.getOccurredAt().toLocalDate().toString());
                 row.createCell(2).setCellValue(tx.getAmount().doubleValue());
                 row.createCell(3).setCellValue(tx.getCategory() == null ? tx.getCreditSource().getName() : tx.getCategory().getName());
-                row.createCell(4).setCellValue(tx.getSubCategory() == null ? "" : tx.getSubCategory());
+                row.createCell(4).setCellValue(subCategoryName(tx));
                 row.createCell(5).setCellValue(tx.getDescription());
                 row.createCell(6).setCellValue(tx.getBalanceAfterTransaction().doubleValue());
             }
@@ -79,5 +79,10 @@ public class ReportService {
         } catch (Exception ex) {
             throw new IllegalStateException("Unable to generate Excel", ex);
         }
+    }
+
+    private String subCategoryName(com.expensetracker.transaction.Transaction tx) {
+        if (tx.getSubCategoryRef() != null) return tx.getSubCategoryRef().getName();
+        return tx.getSubCategory() == null ? "" : tx.getSubCategory();
     }
 }

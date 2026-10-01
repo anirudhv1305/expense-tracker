@@ -8,18 +8,20 @@ import { useApp } from '../state/AppContext';
 export default function SetupPage() {
   const [balance, setBalance] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const { setSetupComplete } = useApp();
   const navigate = useNavigate();
 
   async function submit(event) {
     event.preventDefault();
     setSaving(true);
+    setError('');
     try {
       await client.setup(Number(balance));
       setSetupComplete(true);
       navigate('/');
     } catch (err) {
-      console.error('Setup failed:', err);
+      setError(err.message || 'Could not reach Supabase. Your starting balance was not saved. Try again when connected.');
     } finally {
       setSaving(false);
     }
@@ -28,11 +30,12 @@ export default function SetupPage() {
   return (
     <main className="grid min-h-screen place-items-center p-4">
       <form onSubmit={submit} className="glass w-full max-w-md rounded-lg border p-6">
-        <div className="mb-6 grid h-14 w-14 place-items-center rounded-md bg-primary text-white">
+        <div className="mb-6 grid h-14 w-14 place-items-center rounded-md bg-primary text-primary-foreground">
           <Wallet />
         </div>
         <h1 className="text-2xl font-semibold">Current Bank Balance</h1>
         <p className="mt-2 text-sm text-foreground/60">This becomes your initial balance and starts the first tracking period from today.</p>
+        {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
         <label className="mt-6 block">
           <span className="mb-2 block text-sm font-medium">Amount</span>
           <div className="flex h-12 items-center rounded-md border bg-card px-3 text-lg">

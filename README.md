@@ -1,222 +1,85 @@
-# Expense Tracker
+# Expense Tracker V2
 
-## Project Overview
+Expense Tracker V2 is a React progressive web app backed at runtime by Supabase Auth and PostgreSQL with Row Level Security. Vercel can host the frontend; the Spring Boot application remains in `backend/` as a legacy/reference implementation and is not needed by the Supabase frontend.
 
-Expense Tracker is a production-ready, multi-user personal finance application for tracking income, expenses, monthly balances, category analytics, and exports. It includes secure registration/login, JWT-protected APIs, per-user data isolation, automatic monthly rollover, category and subcategory analytics, and responsive light/dark UI.
+```text
+Android / Desktop browser → React PWA on Vercel → Supabase Auth + PostgreSQL + RLS
+```
 
 ## Features
 
-- Register and login with JWT authentication and BCrypt password hashing
-- Per-user isolation for settings, monthly records, transactions, notes, and reports
-- First-time balance setup for every user
-- Automatic monthly cycle with previous closing balance as the next opening balance
-- Dashboard with current balance, opening balance, credits, debits, savings, transaction count, pie chart, and recent transactions
-- Credit/debit transaction creation, editing, and deletion with automatic recalculation
-- Outings subcategories and dynamic category detail popups
-- Monthly history with archived monthly dashboards
-- Daily spending trends, credit-vs-debit chart, category breakdowns, income summary, insights, notes, and comparisons
-- CSV and Excel exports
-- Responsive React UI with dark mode
-- Flyway-managed PostgreSQL schema
-- Spring Boot health endpoint for deployment monitoring
+- Supabase email/password registration and login, persistent sessions, and sign out
+- First-time balance setup and monthly rollover from the previous closing balance
+- Dashboard balances, income/expense totals, savings, transaction count, charts, and recent transactions
+- Credit and debit creation, editing, deletion, validation, and recalculated running balances
+- Per-user categories and subcategories, archive behavior, and historical labels
+- Monthly history, daily trends, category/source breakdowns, insights, comparisons, notes, CSV, and Excel
+- Responsive mobile navigation, transaction cards, dark mode, and installable PWA shell
 
-## Screenshots
+## Frontend local development
 
-Screenshots can be added after production deployment.
-
-- Dashboard: `docs/screenshots/dashboard.png`
-- Transaction form: `docs/screenshots/transaction-form.png`
-- Monthly history: `docs/screenshots/monthly-history.png`
-- Category analytics popup: `docs/screenshots/category-popup.png`
-
-## Tech Stack
-
-### Frontend
-
-- React 19
-- Vite
-- Tailwind CSS
-- Recharts
-- Axios
-- React Router
-- Lucide Icons
-
-### Backend
-
-- Java 21
-- Spring Boot 3
-- Spring Web
-- Spring Security
-- JWT
-- Spring Data JPA
-- Bean Validation
-- Flyway
-- PostgreSQL
-- Lombok
-- Maven
-- Apache POI
-- OpenCSV
-- Spring Boot Actuator
-
-## Architecture
-
-```text
-frontend/
-  src/components   Reusable UI, charts, modals, transaction table
-  src/pages        Login, register, setup, dashboard, monthly dashboard
-  src/services     Axios API client
-  src/state        App/session context
-
-backend/
-  controller       REST API endpoints
-  service          Business logic, auth-aware ownership checks, recalculation
-  repository       Spring Data JPA repositories
-  entity packages  Users, settings, months, transactions, categories, notes
-  dto              Request/response DTOs
-  security         JWT filter, security config, current-user service
-  resources/db     Flyway migrations
-```
-
-All protected API requests require a JWT. User-owned resources are always queried by both resource ID and authenticated user ID, preventing cross-user access by changing IDs.
-
-## Database
-
-PostgreSQL is managed with Flyway migrations in `backend/src/main/resources/db/migration`.
-
-Core tables:
-
-- `users`
-- `settings`
-- `monthly_records`
-- `transactions`
-- `categories`
-- `credit_sources`
-- `monthly_notes`
-
-Flyway must remain enabled in production. Do not manually modify the schema.
-
-## Installation
-
-### Prerequisites
-
-- Java 21
-- Maven 3.9+
-- Node.js 20+
-- PostgreSQL 16+ or Neon PostgreSQL
-
-### Backend
-
-Set environment variables:
-
-```bash
-DATABASE_URL=jdbc:postgresql://host:5432/database?sslmode=require
-DATABASE_USERNAME=your_database_user
-DATABASE_PASSWORD=your_database_password
-JWT_SECRET=replace-with-a-long-random-secret
-CORS_ALLOWED_ORIGINS=https://your-frontend-domain.com
-SPRING_PROFILES_ACTIVE=prod
-PORT=8080
-```
-
-Run:
-
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-Health endpoint:
-
-```text
-/actuator/health
-```
-
-### Frontend
-
-Set the API URL in Vercel or a local `.env` file:
-
-```bash
-VITE_API_BASE_URL=https://your-backend-domain.com/api
-```
-
-Run:
+Requirements: Node.js 20+ and npm.
 
 ```bash
 cd frontend
 npm install
+copy .env.example .env.local
 npm run dev
 ```
 
-## Deployment
+Set these Vite values in `frontend/.env.local` or the Vercel project settings:
 
-### Backend on Northflank
-
-Use a Java 21 Maven service connected to this GitHub repository.
-
-Recommended settings:
-
-- Build command: `cd backend && mvn -DskipTests package`
-- Start command: `cd backend && java -jar target/expense-tracker-0.0.1-SNAPSHOT.jar`
-- Health path: `/actuator/health`
-- Production profile: `SPRING_PROFILES_ACTIVE=prod`
-
-Required environment variables:
-
-```text
-DATABASE_URL
-DATABASE_USERNAME
-DATABASE_PASSWORD
-JWT_SECRET
-CORS_ALLOWED_ORIGINS
-SPRING_PROFILES_ACTIVE=prod
-PORT
-JWT_EXPIRATION_MINUTES=120
+```dotenv
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
 ```
 
-For Neon, use a JDBC URL with SSL enabled:
+The public anon/publishable key is expected in the browser. Database RLS is the security boundary. Never put a Supabase service-role key in frontend environment variables.
 
-```text
-jdbc:postgresql://HOST/DATABASE?sslmode=require
+## Supabase setup
+
+1. Create a Supabase project. Keep the old PostgreSQL database unchanged as a backup/reference; this project intentionally starts with new accounts and no old expense transactions.
+2. For local Supabase, install Docker and the Supabase CLI, then run `supabase start` and `supabase db reset` from the repository root. `supabase status` prints the local URL and public key for `frontend/.env.local`.
+3. For a hosted project, install the Supabase CLI and authenticate with `supabase login`.
+4. From the repository root, link the project with `supabase link --project-ref YOUR_PROJECT_REF`.
+5. Apply the reproducible schema migration with `supabase db push`. The SQL is in `supabase/migrations/` and the local CLI configuration is `supabase/config.toml`.
+6. The migration creates the schema, RLS policies, transactional RPCs, and an Auth signup trigger. New users receive the existing default categories (Food & Snacks, College Food Expenses, Travel, Outings, Shopping, Recharge, Miscellaneous, Others), Outings subcategories Friend and Girlfriend, and credit sources Parents, Salary, Scholarship, Friend, Refund, Other. Monthly tracking remains unset until the user supplies a starting balance.
+7. In Supabase Auth, configure the production Site URL and allowed redirect URLs for the Vercel domain. Configure the email confirmation policy appropriate to the deployment. With confirmation enabled, a new user confirms email then logs in before setup.
+8. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel. Do not add database passwords or a service-role key to Vercel frontend variables.
+9. Deploy the `frontend` directory to Vercel with `npm run build` and output directory `dist`.
+10. Test registration, email confirmation if enabled, login/logout, balance setup, categories, transactions, and cross-user isolation in the deployed project.
+
+The migration is fresh-start only: it creates tables but does not copy data from Flyway/PostgreSQL. It does not modify or delete the existing database. Do not run the Flyway migrations against the Supabase project.
+
+## Database model and security
+
+`supabase/migrations/20261001000100_initial_schema_and_rls.sql` creates:
+
+- `profiles` → `auth.users`
+- `settings` → `auth.users` and the current `monthly_records` row
+- `monthly_records` → `auth.users`, unique per user/year/month
+- `transactions` → a same-owner monthly record and same-owner category/subcategory/credit source
+- `categories` → `auth.users`; `subcategories` → same-owner parent category
+- `credit_sources` → `auth.users`
+- `monthly_notes` → a same-owner monthly record
+
+RLS is enabled on every application table. Owner policies compare `user_id` (or profile `id`) to `auth.uid()`. Transaction and month rows are client-readable only; security-definer RPCs perform setup, rollover, balance editing, transaction writes/deletes, and note writes while deriving the caller from `auth.uid()`. Composite foreign keys prevent cross-user and cross-category subcategory links. Transaction label snapshots preserve report labels, and rename triggers keep snapshots aligned with renamed categories, subcategories, and sources. Archive operations mark referenced records inactive instead of cascading through transaction history.
+
+## PWA and offline behavior
+
+The frontend includes a web manifest, app icon, standalone display mode, mobile viewport, and a production service worker. The worker caches only the app shell and same-origin built assets. It deliberately does not cache Supabase responses or private financial data. Database operations need network access; failed requests surface errors and transactions are not queued or silently discarded.
+
+## Checks
+
+```bash
+cd frontend
+npm run lint
+npm run build
+npm audit
 ```
 
-### Frontend on Vercel
+There is no frontend test script currently. The Supabase migrations and RLS require verification against a Supabase project/local Supabase stack; a configured project is required to test Auth and two-user policies. Do not treat a successful frontend build as proof of RLS or production readiness.
 
-Use the `frontend` directory as the project root.
+## Legacy backend
 
-Recommended settings:
-
-- Install command: `npm install`
-- Build command: `npm run build`
-- Output directory: `dist`
-- Environment variable: `VITE_API_BASE_URL=https://your-backend-domain.com/api`
-
-`frontend/vercel.json` includes SPA routing support.
-
-## Future Improvements
-
-- Refresh-token based auth flow
-- Password reset email workflow
-- Editable category/source management
-- Budget limits and recurring transactions
-- User profile settings
-- Dashboard code splitting for smaller frontend bundles
-- Automated integration test suite
-- CI/CD pipeline with build and migration validation
-
-## API Summary
-
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/settings/status`
-- `POST /api/settings/setup`
-- `GET /api/dashboard`
-- `GET /api/dashboard/history`
-- `GET /api/lookups/categories`
-- `GET /api/lookups/credit-sources`
-- `POST /api/transactions`
-- `PUT /api/transactions/{id}`
-- `DELETE /api/transactions/{id}`
-- `GET /api/months/{monthId}`
-- `PUT /api/months/{monthId}/notes`
-- `GET /api/exports/{monthId}/csv`
-- `GET /api/exports/{monthId}/excel`
+`backend/` retains the Spring Boot 3 / Java 21 implementation and its historical Flyway migrations as a reversible reference. It is not called by the Supabase frontend and should not be deployed as part of the Supabase/Vercel runtime. The old database remains separate and untouched.

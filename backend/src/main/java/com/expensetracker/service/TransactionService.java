@@ -1,6 +1,7 @@
 package com.expensetracker.service;
 
 import com.expensetracker.category.CategoryRepository;
+import com.expensetracker.category.SubCategoryRepository;
 import com.expensetracker.dto.Requests;
 import com.expensetracker.exception.ApiException;
 import com.expensetracker.month.MonthlyRecord;
@@ -26,6 +27,7 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final MonthlyRecordRepository monthlyRecordRepository;
     private final CategoryRepository categoryRepository;
+    private final SubCategoryRepository subCategoryRepository;
     private final CreditSourceRepository creditSourceRepository;
     private final CurrentUserService currentUserService;
 
@@ -109,11 +111,13 @@ public class TransactionService {
     }
 
     private void applyRequest(Transaction tx, Requests.TransactionRequest request, LocalTime time) {
+        var user = currentUserService.currentUser();
         tx.setType(request.type());
         tx.setAmount(request.amount());
         tx.setOccurredAt(request.date().atTime(time));
         tx.setDescription(request.description().trim());
         tx.setCategory(null);
+        tx.setSubCategoryRef(null);
         tx.setCreditSource(null);
         tx.setSubCategory(null);
 
@@ -121,13 +125,19 @@ public class TransactionService {
             if (request.categoryId() == null) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Debit transactions require a category");
             }
-            tx.setCategory(categoryRepository.findById(request.categoryId())
-                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Category not found")));
-            if ("Outings".equalsIgnoreCase(tx.getCategory().getName())) {
-                if (request.subCategory() == null || request.subCategory().isBlank()) {
-                    throw new ApiException(HttpStatus.BAD_REQUEST, "Outings transactions require a sub category");
-                }
-                tx.setSubCategory(request.subCategory());
+            var category = categoryRepository.findByIdAndUserId(request.categoryId(), user.getId())
+                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Category not found"));
+            if (!category.isActive()) throw new ApiException(HttpStatus.BAD_REQUEST, "Archived categories cannot be selected");
+            tx.setCategory(category);
+            if (request.subCategoryId() != null) {
+                var sub = subCategoryRepository.findByIdAndCategory_User_Id(request.subCategoryId(), user.getId())
+                        .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Subcategory not found"));
+                if (!sub.getCategory().getId().equals(category.getId()) || !sub.isActive())
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "Choose an active subcategory for this category");
+                tx.setSubCategoryRef(sub);
+                tx.setSubCategory(sub.getName());
+            } else if (request.subCategory() != null && !request.subCategory().isBlank()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "Choose a subcategory from this category");
             }
         } else {
             if (request.creditSourceId() == null) {
@@ -135,6 +145,7 @@ public class TransactionService {
             }
             tx.setCreditSource(creditSourceRepository.findById(request.creditSourceId())
                     .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Credit source not found")));
+            tx.setSubCategoryRef(null);
         }
     }
 }

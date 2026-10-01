@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download, Save } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Download, Save, TrendingUp, Wallet } from 'lucide-react';
 import { CreditDebitBar, DailyLine, ExpensePie } from '../components/Charts';
 import CategoryDetailsModal from '../components/CategoryDetailsModal';
 import Layout from '../components/Layout';
@@ -19,20 +19,36 @@ export default function MonthPage() {
   const [data, setData] = useState(null);
   const [notes, setNotes] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [error, setError] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteMessage, setNoteMessage] = useState('');
 
-  async function load() {
-    const [month, months] = await Promise.all([client.month(monthId), client.history()]);
-    setData(month);
-    setNotes(month.notes || '');
-    setHistory(months);
-  }
+  const load = useCallback(async () => {
+    setError('');
+    try {
+      const [month, months] = await Promise.all([client.month(monthId), client.history()]);
+      setData(month);
+      setNotes(month.notes || '');
+      setHistory(months);
+    } catch (cause) { setError(`Could not reach Supabase. ${cause.message || 'Check your connection and retry.'}`); }
+  }, [monthId]);
 
   async function download(type) {
-    const response = type === 'csv' ? await client.downloadCsv(month.id) : await client.downloadExcel(month.id);
-    await downloadFile(response, `${monthLabel(month.month, month.year).replace(' ', '_')}.${type}`);
+    try {
+      const response = type === 'csv' ? await client.downloadCsv(month.id) : await client.downloadExcel(month.id);
+      await downloadFile(response, `${monthLabel(month.month, month.year).replace(' ', '_')}.${type}`);
+      setError('');
+    } catch (cause) { setError(`Export could not be generated. ${cause.message || 'Check your connection and retry.'}`); }
   }
 
-  useEffect(() => { load(); }, [monthId]);
+  async function saveNotes() {
+    setSavingNote(true); setNoteMessage('');
+    try { await client.saveNote(month.id, notes); setNoteMessage('Notes saved.'); }
+    catch (cause) { setError(`Notes were not saved. ${cause.message || 'Check your connection and retry.'}`); }
+    finally { setSavingNote(false); }
+  }
+
+  useEffect(() => { load(); }, [load]);
 
   const calendar = useMemo(() => {
     if (!data) return [];
@@ -47,52 +63,47 @@ export default function MonthPage() {
     return [...blanks, ...dates];
   }, [data]);
 
-  if (!data) return <div className="grid min-h-screen place-items-center text-foreground/60">Loading month...</div>;
+  if (!data) return <div className="grid min-h-screen place-items-center p-5"><div className="max-w-lg rounded-xl border bg-card p-5">{error || 'Loading month...'}{error && <Button className="mt-4" onClick={load}>Try again</Button>}</div></div>;
   const { month, insights } = data;
 
   return (
     <Layout history={history}>
+      {error && <p role="alert" className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
       <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-end">
         <div>
-          <p className="text-sm text-foreground/60">Monthly Dashboard</p>
-          <h1 className="text-3xl font-semibold">{monthLabel(month.month, month.year)}</h1>
+          <p className="text-sm font-medium text-primary">Monthly insights</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">{monthLabel(month.month, month.year)}</h1>
+          <p className="mt-1 text-sm text-foreground/55">Your cash flow, spending patterns and notes.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => download('csv')}><Download size={16} /> CSV</Button>
-          <Button variant="secondary" onClick={() => download('xlsx')}><Download size={16} /> Excel</Button>
+          <Button variant="secondary" onClick={() => download('csv')}><Download size={16} /> Export CSV</Button>
+          <Button variant="secondary" onClick={() => download('xlsx')}><Download size={16} /> Export Excel</Button>
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Opening Balance" value={month.openingBalance} />
-        <MetricCard label="Total Credits" value={month.totalCredits} tone="credit" />
-        <MetricCard label="Total Debits" value={month.totalDebits} tone="debit" />
-        <MetricCard label="Closing Balance" value={month.closingBalance} />
-        <MetricCard label="Savings" value={month.savings} tone="analytics" />
-        <MetricCard label="Transactions" value={String(month.transactionCount)} tone="analytics" format="plain" />
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="finance-hero col-span-2 rounded-3xl p-5 sm:p-6"><div className="flex items-center gap-2 text-sm text-white/65"><Wallet size={16}/>Closing balance</div><p className="mt-2 text-3xl font-bold tabular-nums">{currency(month.closingBalance)}</p><div className="mt-4 grid grid-cols-2 gap-4 border-t border-white/15 pt-3"><div><p className="flex items-center gap-1 text-xs text-white/65"><ArrowDownLeft size={13}/>Income</p><p className="mt-1 font-semibold">{currency(month.totalCredits)}</p></div><div><p className="flex items-center gap-1 text-xs text-white/65"><ArrowUpRight size={13}/>Expenses</p><p className="mt-1 font-semibold">{currency(month.totalDebits)}</p></div></div></div>
+        <MetricCard label="Opening balance" value={month.openingBalance} />
+        <MetricCard label="Net savings" value={month.savings} tone="analytics" />
+        <div className="col-span-2 rounded-2xl border bg-card p-5 lg:col-span-2"><div className="flex items-center gap-2 text-sm text-foreground/55"><TrendingUp size={16}/>Activity</div><p className="mt-2 text-2xl font-bold">{month.transactionCount}<span className="ml-2 text-sm font-medium text-foreground/50">transactions recorded</span></p></div>
       </section>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-3">
+      <div className="mb-3 mt-8"><h2 className="text-lg font-bold tracking-tight">Cash flow & trends</h2><p className="mt-1 text-sm text-foreground/55">Patterns behind your monthly totals.</p></div>
+      <section className="grid gap-4 xl:grid-cols-3">
         <ExpensePie data={data.categoryTotals} />
         <DailyLine data={data.dailySpending} />
         <CreditDebitBar month={month} />
       </section>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[1fr_360px]">
+      <div className="mb-3 mt-8"><h2 className="text-lg font-bold tracking-tight">Spending detail</h2><p className="mt-1 text-sm text-foreground/55">Explore categories and the transactions behind them.</p></div>
+      <section className="grid gap-4 xl:grid-cols-[1.25fr_.75fr]">
         <Card>
           <CardTitle>Category Breakdown</CardTitle>
           <div className="mt-4 space-y-3">
             {data.categoryTotals.map((category) => (
-              <button key={category.id} className="grid w-full grid-cols-[1fr_auto_auto] items-center gap-3 rounded-md border p-3 text-left text-sm hover:bg-muted" onClick={() => setSelectedCategory(category)}>
-                <span>{category.name}</span>
-                <span className="font-semibold">{currency(category.total)}</span>
-                <span className="text-foreground/50">{category.percentage}%</span>
-                {category.name === 'Outings' && data.outingSubCategories?.map((sub) => (
-                  <div key={sub.name} className="col-span-3 ml-4 flex justify-between rounded-md bg-muted px-3 py-2 text-xs">
-                    <span>{sub.name}</span>
-                    <span>{currency(sub.total)}</span>
-                  </div>
-                ))}
+              <button key={category.id} className="w-full rounded-xl px-2 py-3 text-left transition hover:bg-muted/70" onClick={() => setSelectedCategory(category)}>
+                <span className="flex items-center justify-between gap-3 text-sm"><span className="truncate font-medium">{category.name}</span><span className="shrink-0 font-bold tabular-nums">{currency(category.total)}</span></span>
+                <span className="mt-2 flex items-center gap-2"><span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-primary" style={{ width: `${Math.max(2, Math.min(100, category.percentage))}%` }}/></span><span className="w-10 text-right text-xs text-foreground/50">{category.percentage}%</span></span>
               </button>
             ))}
           </div>
@@ -109,7 +120,8 @@ export default function MonthPage() {
         </Card>
       </section>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-2">
+      <div className="mb-3 mt-8"><h2 className="text-lg font-bold tracking-tight">Month at a glance</h2></div>
+      <section className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardTitle>Calendar View</CardTitle>
           <div className="mt-4 grid grid-cols-7 gap-2 text-center text-xs text-foreground/50">
@@ -140,8 +152,10 @@ export default function MonthPage() {
       <section className="mt-6 grid gap-6 xl:grid-cols-[1fr_360px]">
         <Card>
           <CardTitle>Monthly Notes</CardTitle>
-          <textarea className="mt-4 min-h-36 w-full rounded-md border bg-card p-3 outline-none" value={notes} onChange={(e) => setNotes(e.target.value)} />
-          <Button className="mt-3" onClick={() => client.saveNote(month.id, notes)}><Save size={16} /> Save Notes</Button>
+          <p className="mt-1 text-sm text-foreground/55">A private reminder for this month.</p>
+          <textarea aria-label="Monthly notes" placeholder="What do you want to remember about this month?" className="mt-4 min-h-36 w-full resize-y rounded-xl border bg-background p-4 outline-none focus:border-primary" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <Button className="mt-3" onClick={saveNotes} disabled={savingNote}><Save size={16} /> {savingNote ? 'Saving...' : 'Save Notes'}</Button>
+          {noteMessage && <p className="mt-2 text-sm text-success">{noteMessage}</p>}
         </Card>
         <Card>
           <CardTitle>Previous Month Comparison</CardTitle>
@@ -150,22 +164,20 @@ export default function MonthPage() {
             <Info label="Income" value={`${data.comparison.incomePct}%`} />
             <Info label="Expenses" value={`${data.comparison.expensesPct}%`} />
             <Info label="Savings" value={`${data.comparison.savingsPct}%`} />
-            <Info label="Shopping" value={`${data.comparison.shoppingPct}%`} />
-            <Info label="Food" value={`${data.comparison.foodPct}%`} />
-            <Info label="Travel" value={`${data.comparison.travelPct}%`} />
+            {data.comparison.categoryChanges.map((category) => <Info key={category.id} label={category.name} value={`${category.percentage}%`} />)}
           </dl>
         </Card>
       </section>
 
       <section className="mt-6">
-        {data.outingSubCategories?.some((sub) => sub.transactions.length > 0) && (
+        {data.subCategoryTotals?.some((sub) => sub.transactions.length > 0) && (
           <Card className="mb-6">
-            <CardTitle>Outings Details</CardTitle>
+            <CardTitle>Subcategory Breakdown</CardTitle>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              {data.outingSubCategories.map((sub) => (
-                <div key={sub.name} className="rounded-md border p-3">
+              {data.subCategoryTotals.map((sub) => (
+                <div key={`${sub.category}-${sub.name}`} className="rounded-md border p-3">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="font-semibold">{sub.name}</h3>
+                    <div><h3 className="font-semibold">{sub.name}</h3><p className="text-xs text-foreground/55">{sub.category}</p></div>
                     <span>{currency(sub.total)}</span>
                   </div>
                   <div className="space-y-2 text-sm">

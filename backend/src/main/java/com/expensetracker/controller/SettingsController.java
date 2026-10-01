@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,5 +28,10 @@ public class SettingsController {
     @PostMapping("/setup")
     public Responses.MonthSummary setup(@Valid @RequestBody Requests.SetupRequest request) {
         return com.expensetracker.service.Mapper.month(monthlyCycleService.setup(request.initialBalance(), LocalDate.now()));
+    }
+
+    @PutMapping("/balance")
+    public Responses.MonthSummary updateBalance(@Valid @RequestBody Requests.BalanceRequest request) {
+        return com.expensetracker.service.Mapper.month(monthlyCycleService.updateOpeningBalance(request.openingBalance()));
     }
 }

@@ -25,9 +25,10 @@ export default function RegisterPage() {
     try {
       const auth = await client.register(form);
       applyAuth(auth);
-      navigate('/setup');
+      if (auth.session) navigate('/setup');
+      else setError('Account created. Check your email to confirm it, then log in.');
     } catch (ex) {
-      setError(ex.response?.data?.message || 'Registration failed');
+      setError(ex.message || 'Registration failed');
     } finally {
       setSaving(false);
     }
@@ -36,12 +37,12 @@ export default function RegisterPage() {
   return (
     <AuthShell title="Register">
       <form onSubmit={submit} className="grid gap-4">
-        <input required className="h-11 rounded-md border bg-card px-3" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <input required type="email" className="h-11 rounded-md border bg-card px-3" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <input required minLength={8} type="password" className="h-11 rounded-md border bg-card px-3" placeholder="Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-        <input required type="password" className="h-11 rounded-md border bg-card px-3" placeholder="Confirm Password" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button disabled={saving}>{saving ? 'Creating...' : 'Create Account'}</Button>
+        <label className="grid gap-1.5 text-sm font-semibold">Name<input required autoComplete="name" className="h-12 rounded-xl border bg-card px-4 font-normal" placeholder="Your name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+        <label className="grid gap-1.5 text-sm font-semibold">Email<input required autoComplete="email" type="email" className="h-12 rounded-xl border bg-card px-4 font-normal" placeholder="you@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+        <label className="grid gap-1.5 text-sm font-semibold">Password<input required minLength={8} autoComplete="new-password" type="password" className="h-12 rounded-xl border bg-card px-4 font-normal" placeholder="At least 8 characters" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
+        <label className="grid gap-1.5 text-sm font-semibold">Confirm password<input required autoComplete="new-password" type="password" className="h-12 rounded-xl border bg-card px-4 font-normal" placeholder="Enter your password again" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} /></label>
+        {error && <p role="alert" className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+        <Button className="min-h-12" disabled={saving}>{saving ? 'Creating...' : 'Create account'}</Button>
         <p className="text-center text-sm text-foreground/60">Already registered? <Link className="text-primary" to="/login">Login</Link></p>
       </form>
     </AuthShell>

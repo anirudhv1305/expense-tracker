@@ -1,6 +1,7 @@
 package com.expensetracker.transaction;
 
 import com.expensetracker.category.Category;
+import com.expensetracker.category.SubCategory;
 import com.expensetracker.common.BaseEntity;
 import com.expensetracker.month.MonthlyRecord;
 import com.expensetracker.source.CreditSource;
@@ -39,6 +40,10 @@ public class Transaction extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sub_category_id")
+    private SubCategory subCategoryRef;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "credit_source_id")

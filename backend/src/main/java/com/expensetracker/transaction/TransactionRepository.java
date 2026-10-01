@@ -15,4 +15,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
     List<Transaction> findTop8ByMonthlyRecordAndUserIdOrderByOccurredAtDescCreatedAtDesc(MonthlyRecord monthlyRecord, UUID userId);
     Optional<Transaction> findByIdAndUserId(UUID id, UUID userId);
     List<Transaction> findByOccurredAtBetweenOrderByOccurredAtAsc(LocalDateTime from, LocalDateTime to);
+    boolean existsByCategoryId(UUID categoryId);
+    boolean existsBySubCategoryRefId(UUID subCategoryId);
 }

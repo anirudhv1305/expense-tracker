@@ -2,6 +2,7 @@ package com.expensetracker.dto;
 
 import com.expensetracker.transaction.TransactionType;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -38,9 +39,13 @@ public final class Requests {
             @NotBlank @Size(max = 180) String description,
             UUID categoryId,
             UUID creditSourceId,
-            @Pattern(regexp = "Friend|Girlfriend", message = "Sub category must be Friend or Girlfriend")
-            String subCategory
+            @Size(max = 80) String subCategory,
+            UUID subCategoryId
     ) {}
+
+    public record CategoryRequest(@NotBlank @Size(max = 120) String name) {}
+    public record SubCategoryRequest(@NotBlank @Size(max = 80) String name) {}
+    public record BalanceRequest(@NotNull @DecimalMin(value = "0.00", inclusive = true) @Digits(integer = 12, fraction = 2) BigDecimal openingBalance) {}
 
     public record NoteRequest(@Size(max = 5000) String content) {}
 }

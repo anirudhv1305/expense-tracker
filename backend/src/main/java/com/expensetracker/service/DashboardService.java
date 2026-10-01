@@ -72,7 +72,7 @@ public class DashboardService {
                 insights(month, txs),
                 notes,
                 comparison(month),
-                outingSubCategories(txs)
+                subCategoryTotals(txs)
         );
     }
 
@@ -82,7 +82,7 @@ public class DashboardService {
     }
 
     public List<Responses.LookupItem> categories() {
-        return categoryRepository.findAll().stream()
+        return categoryRepository.findByUserIdOrderByDisplayOrder(currentUserService.currentUser().getId()).stream().filter(Category::isActive)
                 .sorted(Comparator.comparing(Category::getDisplayOrder))
                 .map(c -> new Responses.LookupItem(c.getId(), c.getName()))
                 .toList();
@@ -102,7 +102,7 @@ public class DashboardService {
         var totals = txs.stream().collect(Collectors.groupingBy(tx -> tx.getCategory().getId(),
                 Collectors.reducing(BigDecimal.ZERO, Transaction::getAmount, BigDecimal::add)));
         var totalDebits = month.getTotalDebits();
-        return categoryRepository.findAll().stream()
+        return categoryRepository.findByUserIdOrderByDisplayOrder(month.getUser().getId()).stream()
                 .sorted(Comparator.comparing(Category::getDisplayOrder))
                 .map(category -> {
                     var total = totals.getOrDefault(category.getId(), BigDecimal.ZERO);
@@ -151,22 +151,21 @@ public class DashboardService {
     private Responses.MonthComparison comparison(MonthlyRecord month) {
         var previous = YearMonth.of(month.getYear(), month.getMonth()).minusMonths(1);
         return monthlyRecordRepository.findByUserIdAndYearAndMonth(month.getUser().getId(), previous.getYear(), previous.getMonthValue())
-                .map(prev -> new Responses.MonthComparison(
-                        previous.getMonth() + " " + previous.getYear(),
-                        delta(month.getTotalCredits(), prev.getTotalCredits()),
-                        delta(month.getTotalDebits(), prev.getTotalDebits()),
-                        delta(month.getTotalCredits().subtract(month.getTotalDebits()), prev.getTotalCredits().subtract(prev.getTotalDebits())),
-                        categoryDelta(month, prev, "Shopping"),
-                        categoryDelta(month, prev, "Food"),
-                        categoryDelta(month, prev, "Travel")
-                ))
-                .orElse(new Responses.MonthComparison("No previous month", BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO));
-    }
-
-    private BigDecimal categoryDelta(MonthlyRecord current, MonthlyRecord previous, String categoryName) {
-        var currentTotal = categoryTotals(current).stream().filter(c -> c.name().contains(categoryName)).map(Responses.CategoryTotal::total).findFirst().orElse(BigDecimal.ZERO);
-        var previousTotal = categoryTotals(previous).stream().filter(c -> c.name().contains(categoryName)).map(Responses.CategoryTotal::total).findFirst().orElse(BigDecimal.ZERO);
-        return delta(currentTotal, previousTotal);
+                .map(prev -> {
+                    var currentCategories = categoryTotals(month);
+                    var previousCategories = categoryTotals(prev);
+                    var categoryChanges = currentCategories.stream().map(category -> new Responses.CategoryChange(category.id(), category.name(),
+                            delta(category.total(), previousCategories.stream().filter(previousCategory -> previousCategory.id().equals(category.id()))
+                                    .map(Responses.CategoryTotal::total).findFirst().orElse(BigDecimal.ZERO)))).toList();
+                    return new Responses.MonthComparison(
+                            previous.getMonth() + " " + previous.getYear(),
+                            delta(month.getTotalCredits(), prev.getTotalCredits()),
+                            delta(month.getTotalDebits(), prev.getTotalDebits()),
+                            delta(month.getTotalCredits().subtract(month.getTotalDebits()), prev.getTotalCredits().subtract(prev.getTotalDebits())),
+                            categoryChanges
+                    );
+                })
+                .orElse(new Responses.MonthComparison("No previous month", BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, List.of()));
     }
 
     private BigDecimal pct(BigDecimal amount, BigDecimal total) {
@@ -179,17 +178,14 @@ public class DashboardService {
         return current.subtract(previous).multiply(BigDecimal.valueOf(100)).divide(previous, 2, RoundingMode.HALF_UP);
     }
 
-    private List<Responses.SubCategoryTotal> outingSubCategories(List<Transaction> txs) {
-        return List.of("Friend", "Girlfriend").stream()
-                .map(name -> {
-                    var matching = txs.stream()
-                            .filter(tx -> tx.getType() == TransactionType.DEBIT)
-                            .filter(tx -> tx.getCategory() != null && "Outings".equalsIgnoreCase(tx.getCategory().getName()))
-                            .filter(tx -> name.equalsIgnoreCase(tx.getSubCategory()))
-                            .toList();
-                    var total = matching.stream().map(Transaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-                    return new Responses.SubCategoryTotal(name, total, matching.stream().map(Mapper::transaction).toList());
-                })
-                .toList();
+    private List<Responses.SubCategoryTotal> subCategoryTotals(List<Transaction> txs) {
+        var grouped = txs.stream().filter(tx -> tx.getType() == TransactionType.DEBIT && tx.getSubCategory() != null && tx.getCategory() != null)
+                .collect(Collectors.groupingBy(tx -> tx.getCategory().getName() + "\u0000" + (tx.getSubCategoryRef() == null ? tx.getSubCategory() : tx.getSubCategoryRef().getName())));
+        return grouped.entrySet().stream().map(entry -> {
+            var matching = entry.getValue(); var first = matching.get(0);
+            var total = matching.stream().map(Transaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            var name = first.getSubCategoryRef() == null ? first.getSubCategory() : first.getSubCategoryRef().getName();
+            return new Responses.SubCategoryTotal(name, first.getCategory().getName(), total, matching.stream().map(Mapper::transaction).toList());
+        }).sorted(Comparator.comparing(Responses.SubCategoryTotal::category).thenComparing(Responses.SubCategoryTotal::name)).toList();
     }
 }

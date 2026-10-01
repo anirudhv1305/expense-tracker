@@ -5,6 +5,7 @@ import com.expensetracker.dto.Responses;
 import com.expensetracker.exception.ApiException;
 import com.expensetracker.security.JwtService;
 import com.expensetracker.security.UserPrincipal;
+import com.expensetracker.service.CategoryTemplateService;
 import com.expensetracker.user.AppUser;
 import com.expensetracker.user.AppUserRepository;
 import jakarta.validation.Valid;
@@ -26,6 +27,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final CategoryTemplateService categoryTemplateService;
 
     @PostMapping("/register")
     public Responses.AuthResponse register(@Valid @RequestBody Requests.RegisterRequest request) {
@@ -40,6 +42,7 @@ public class AuthController {
         user.setEmail(request.email().trim().toLowerCase());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user = appUserRepository.save(user);
+        categoryTemplateService.initializeFor(user);
         return authResponse(user);
     }
 

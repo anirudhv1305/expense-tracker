@@ -23,7 +23,7 @@ export default function LoginPage() {
       applyAuth(auth);
       navigate('/');
     } catch (ex) {
-      setError(ex.response?.data?.message || 'Login failed');
+      setError(ex.message || 'Login failed');
     } finally {
       setSaving(false);
     }
@@ -32,10 +32,10 @@ export default function LoginPage() {
   return (
     <AuthShell title="Login">
       <form onSubmit={submit} className="grid gap-4">
-        <input required type="email" className="h-11 rounded-md border bg-card px-3" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <input required type="password" className="h-11 rounded-md border bg-card px-3" placeholder="Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button disabled={saving}>{saving ? 'Signing in...' : 'Login'}</Button>
+        <label className="grid gap-1.5 text-sm font-semibold">Email<input required autoComplete="email" type="email" className="h-12 rounded-xl border bg-card px-4 font-normal" placeholder="you@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+        <label className="grid gap-1.5 text-sm font-semibold">Password<input required autoComplete="current-password" type="password" className="h-12 rounded-xl border bg-card px-4 font-normal" placeholder="Your password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
+        {error && <p role="alert" className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+        <Button className="mt-1 min-h-12" disabled={saving}>{saving ? 'Signing in...' : 'Sign in'}</Button>
         <p className="text-center text-sm text-foreground/60">New here? <Link className="text-primary" to="/register">Create account</Link></p>
       </form>
     </AuthShell>
@@ -44,14 +44,16 @@ export default function LoginPage() {
 
 export function AuthShell({ title, children }) {
   return (
-    <main className="grid min-h-screen place-items-center p-4">
-      <section className="glass w-full max-w-md rounded-lg border p-6">
-        <div className="mb-6 grid h-14 w-14 place-items-center rounded-md bg-primary text-white">
-          <Wallet />
-        </div>
-        <h1 className="mb-6 text-2xl font-semibold">{title}</h1>
+    <main className="grid min-h-screen place-items-center bg-background p-4 sm:p-8">
+      <section className="glass w-full max-w-[460px] rounded-[1.7rem] border p-6 shadow-xl shadow-black/[.04] sm:p-9">
+        <LinkBrand />
+        <p className="mt-8 text-sm font-semibold text-primary">YOUR FINANCES, IN FOCUS</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight">{title === 'Login' ? 'Welcome back' : 'Start with a clear picture'}</h1>
+        <p className="mb-7 mt-2 text-sm leading-6 text-foreground/55">{title === 'Login' ? 'Sign in to pick up right where you left off.' : 'A calmer way to track income, spending and the balance that matters.'}</p>
         {children}
       </section>
     </main>
   );
 }
+
+function LinkBrand() { return <div className="flex items-center gap-3 text-sm font-bold"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-primary text-primary-foreground"><Wallet size={20}/></span>Expense Tracker</div>; }

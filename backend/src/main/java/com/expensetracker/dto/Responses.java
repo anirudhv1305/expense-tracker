@@ -14,6 +14,8 @@ public final class Responses {
     public record SetupStatus(boolean setupComplete) {}
 
     public record LookupItem(UUID id, String name) {}
+    public record SubCategoryItem(UUID id, String name, boolean active) {}
+    public record CategoryItem(UUID id, String name, boolean active, List<SubCategoryItem> subCategories) {}
 
     public record TransactionResponse(
             UUID id,
@@ -29,7 +31,8 @@ public final class Responses {
 
     public record CategoryTotal(UUID id, String name, BigDecimal total, BigDecimal percentage) {}
 
-    public record SubCategoryTotal(String name, BigDecimal total, List<TransactionResponse> transactions) {}
+    public record SubCategoryTotal(String name, String category, BigDecimal total, List<TransactionResponse> transactions) {}
+    public record CategoryChange(UUID id, String name, BigDecimal percentage) {}
 
     public record SourceTotal(UUID id, String name, BigDecimal total) {}
 
@@ -75,11 +78,11 @@ public final class Responses {
             Insights insights,
             String notes,
             MonthComparison comparison,
-            List<SubCategoryTotal> outingSubCategories
+            List<SubCategoryTotal> subCategoryTotals
     ) {}
 
     public record MonthComparison(String label, BigDecimal incomePct, BigDecimal expensesPct, BigDecimal savingsPct,
-                                  BigDecimal shoppingPct, BigDecimal foodPct, BigDecimal travelPct) {}
+                                  List<CategoryChange> categoryChanges) {}
 
     public record AuthUser(UUID id, String name, String email) {}
 

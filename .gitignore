@@ -4,8 +4,10 @@ dist/
 build/
 .env
 .env.*
+!.env.example
 .idea/
 .vscode/
 logs/
 *.log
 .agents/
+supabase/.temp/
